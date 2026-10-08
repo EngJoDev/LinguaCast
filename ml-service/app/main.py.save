@@ -1,0 +1,21 @@
+
+
+from fastapi import FastAPI
+from pydantic import BaseModel
+from gtts import gTTS
+import os
+
+app = FastAPI()
+
+class SpeakRequest(BaseModel):
+    text: str
+    lang: str = "ar"
+
+@app.post("/speech")
+async def speak_text(request: SpeakRequest):
+    tts = gTTS(request.text, lang=request.lang)
+    temp_file = "temp.mp3"
+    output_file = "output_speech.wav"
+    tts.save(temp_file)
+    os.system(f"ffmpeg -y -i {temp_file} {output_file}")
+    return {"audio_file": os.path.abspath(output_file)}

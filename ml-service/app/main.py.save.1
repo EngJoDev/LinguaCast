@@ -1,0 +1,80 @@
+from fastapi import FastAPI, Query, HTTPException
+from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
+import os
+
+# استدعاء الخدمات التي قمنا ببرمجتها
+from app.services.tts import generate_speech_stream
+from app.services.dubber import run_dubbing_pipeline
+
+app = FastAPI(
+    title="LinguaCast ML Service",
+    description="خدمات الذكاء الاصطناعي الكاملة لمنصة الدبلجة",
+    version="1.0.0"
+)
+
+# تفعيل الـ CORS لضمان اتصال سليم بين الخدمات
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# المسار المشترك المتصل بحاوية الـ Node.js عبر الـ Docker Volumes
+STORAGE_DIR = "/app/storage"
+
+@app.get("/")
+def read_root():
+    return {"status": "online", "message": "LinguaCast ML Service is running successfully!"}
+
+@app.get("/api/ml/tts/stream")
+async def stream_tts(
+    text: str = Query(..., description="النص المراد تحويله إلى صوت"),
+    lang: str = Query("ar", description="اللغة (ar أو en)")
+):
+    """
+    بث صوتي مباشر في الذاكرة دون حفظ ملفات
+    """
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="النص لا يمكن أن يكون فارغاً")
+    try:
+        audio_stream = await generate_speech_stream(text, lang)
+        return StreamingResponse(audio_stream, media_type="audio/mpeg")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"حدث خطأ أثناء توليد الصوت: {str(e)}")
+
+@app.post("/api/ml/dub")
+async def dub_video(
+    video_filename: str = Query(..., description="اسم ملف الفيديو المرفوع داخل المجلد المشترك"),
+    target_lang: str = Query("ar", description="اللغة المستهدفة للدبلجة (مثال: ar)")
+): """ الـ Endpoint الرئيسي: يستقبل اسم الفيديو من الـ Backend، ويشغل 
+    الـ Pipeline، ويحفظ الفيديو المدبلج النهائي في المجلد المشترك. """ 
+    input_path = os.path.join(STORAGE_DIR, video_filename) 
+    output_filename = f"dubbed_{target_lang}_{video_filename}.mp4" 
+    output_path = os.path.join(STORAGE_DIR, output_filename)
+sed -i 's|output_filename = 
+f"dubbed_{target_lang}_{video_filename}"|output_filename = 
+f"dubbed_{target_lang}_{video_filename}.mp4"|g' 
+~/Desktop/LinguaCast/ml-service/app/main.py
+    # التأكد من أن الـ Node.js قام بحفظ الملف فعلياً في المجلد المشترك
+    if not os.path.exists(input_path):
+        raise HTTPException(
+            status_code=404, 
+            detail=f"الملف {video_filename} غير موجود في التخزين المشترك. تأكد من ربط الـ Volumes بشكل صحيح."
+        )
+
+    try:
+        # استدعاء المايسترو لبدء الدبلجة التلقائية وضبط التزامن
+        print(f"🎬 بدء عملية الدبلجة للملف: {video_filename}")
+        await run_dubbing_pipeline(input_path, output_path, target_lang)
+        
+        return {
+            "status": "success",
+            "message": "تمت دبلجة الفيديو ومطابقته زمنياً بنجاح تام!",
+            "output_video": output_filename
+        }
+    except Exception as e:
+        print(f"❌ خطأ كارثي أثناء الدبلجة: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"فشلت معالجة الدبلجة: {str(e)}")

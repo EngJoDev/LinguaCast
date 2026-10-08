@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinguaCast AI | استوديو الدبلجة العالمي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #050505;
+            color: #ffffff;
+            overflow-x: hidden;
+            margin: 0;
+        }
+        .cosmic-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: -1;
+            background: radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.15), transparent 25%),
+                        radial-gradient(circle at 85% 30%, rgba(14, 116, 144, 0.15), transparent 25%);
+        }
+        .glass-panel {
+            background: rgba(20, 20, 25, 0.6);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+        }
+        .btn-reactor {
+            background: linear-gradient(135deg, #4f46e5 0%, #9333ea 50%, #ec4899 100%);
+            background-size: 200% auto;
+            color: white;
+            transition: all 0.4s;
+            box-shadow: 0 0 20px rgba(147, 51, 234, 0.4);
+            cursor: pointer;
+        }
+        .btn-reactor:hover {
+            background-position: right center;
+            transform: translateY(-3px) scale(1.01);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col relative">
+
+    <div class="cosmic-bg"></div>
+
+    <header class="border-b border-white/10 bg-black/30 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.5)]">
+                    <i class="fa-solid fa-microphone-lines text-white text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black tracking-wider text-white">
+                        LinguaCast <span class="text-purple-400">Pro</span>
+                    </h1>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 py-12 w-full flex-grow relative z-10">
+        <div class="text-center mb-12">
+            <h2 class="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500">
+                استوديو الدبلجة العالمي
+            </h2>
+        </div>
+
+        <div class="glass-panel rounded-[2rem] p-6 md:p-10 relative overflow-hidden">
+            <form id="dubForm" class="space-y-8" onsubmit="return false;">
+                <div>
+                    <label class="flex items-center gap-2 text-lg font-bold text-gray-200 mb-4">
+                        <i class="fa-solid fa-cloud-arrow-up text-purple-400"></i> ملف الفيديو:
+                    </label>
+                    <input type="file" id="videoFile" accept="video/*" class="hidden" onchange="handleFileSelect(event)">
+                    <div id="uploadBox" onclick="document.getElementById('videoFile').click()" class="border-2 border-dashed border-gray-600/50 hover:border-purple-500 bg-black/40 hover:bg-purple-900/10 rounded-3xl p-10 text-center cursor-pointer transition-all">
+                        <div id="uploadStateEmpty" class="space-y-4">
+                            <i class="fa-solid fa-film text-4xl text-gray-400"></i>
+                            <h3 class="text-xl font-bold text-white">اضغط هنا لاختيار الفيديو</h3>
+                        </div>
+                        <div id="uploadStateSuccess" style="display: none;" class="flex-col items-center justify-center space-y-3">
+                            <i class="fa-solid fa-check text-3xl text-green-400"></i>
+                            <h3 id="selectedFileName" class="text-lg font-bold text-white bg-gray-900 px-4 py-2 rounded-xl border border-gray-700"></h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-4">
+                        <label class="flex items-center gap-2 text-lg font-bold text-gray-200">
+                            <i class="fa-solid fa-earth-americas text-blue-400"></i> لغة الدبلجة:
+                        </label>
+                        <select id="targetLang" class="w-full bg-black/60 border border-gray-700 rounded-2xl px-5 py-4 text-white text-lg font-bold"><option value="ar">🇸🇦 العربية</option><option value="en">🇺🇸 الإنجليزية</option><option value="es">🇪🇸 الإسبانية</option><option value="fr">🇫🇷 الفرنسية</option><option value="de">🇩🇪 الألمانية</option><option value="zh-CN">🇨🇳 الصينية (المبسطة)</option><option value="zh-TW">🇹🇼 الصينية (التقليدية)</option><option value="ru">🇷🇺 الروسية</option><option value="tr">🇹🇷 التركية</option><option value="hi">🇮🇳 الهندية</option><option value="it">🇮🇹 الإيطالية</option><option value="pt">🇵🇹 البرتغالية</option><option value="ja">🇯🇵 اليابانية</option><option value="ko">🇰🇷 الكورية</option><option value="nl">🇳🇱 الهولندية</option><option value="pl">🇵🇱 البولندية</option><option value="ro">🇷🇴 الرومانية</option><option value="uk">🇺🇦 الأوكرانية</option><option value="sv">🇸🇪 السويدية</option><option value="da">🇩🇰 الدنماركية</option><option value="fi">🇫🇮 الفنلندية</option><option value="no">🇳🇴 النرويجية</option><option value="cs">🇨🇿 التشيكية</option><option value="hu">🇭🇺 الهنغارية</option><option value="el">🇬🇷 اليونانية</option><option value="id">🇮🇩 الإندونيسية</option><option value="ms">🇲🇾 الماليزية</option><option value="th">🇹🇭 التايلاندية</option><option value="vi">🇻🇳 الفيتنامية</option><option value="he">🇮🇱 العبرية</option><option value="fa">🇮🇷 الفارسية</option><option value="ur">🇵🇰 الأوردية</option><option value="bn">🇧🇩 البنغالية</option><option value="sw">🇰🇪 السواحلية</option><option value="af">🇿🇦 الأفريكانية</option><option value="sq">🇦🇱 الألبانية</option><option value="am">🇪🇹 الأمهرية</option><option value="hy">🇦🇲 الأرمنية</option><option value="az">🇦🇿 الأذربيجانية</option><option value="eu">🇪🇸 الباسكية</option><option value="be">🇧🇾 البيلاروسية</option><option value="bs">🇧🇦 البوسنية</option><option value="bg">🇧🇬 البلغارية</option><option value="ca">🇪🇸 الكتالونية</option><option value="hr">🇭🇷 الكرواتية</option><option value="et">🇪🇪 الإستونية</option><option value="tl">🇵🇭 الفلبينية</option><option value="ka">🇬🇪 الجورجية</option><option value="is">🇮🇸 الأيسلندية</option><option value="ga">🇮🇪 الأيرلندية</option><option value="lv">🇱🇻 اللاتفية</option><option value="lt">🇱🇹 اللتوانية</option><option value="mk">🇲🇰 المكدونية</option><option value="ml">🇮🇳 الماليالامية</option><option value="mt">🇲🇹 المالتية</option><option value="mr">🇮🇳 الماراهتية</option><option value="mn">🇲🇳 المنغولية</option><option value="ne">🇳🇵 النيبالية</option><option value="sr">🇷🇸 الصربية</option><option value="sk">🇸🇰 السلوفاكية</option><option value="sl">🇸🇮 السلوفينية</option><option value="so">🇸🇴 الصومالية</option><option value="cy">🇬🇧 الويلزية</option><option value="yi">🌐 اليديشية</option><option value="yo">🇳🇬 اليوربا</option><option value="zu">🇿🇦 الزولو</option><option value="ku">🇮🇶 الكردية</option><option value="uz">🇺🇿 الأوزبكية</option><option value="kk">🇰🇿 الكازاخستانية</option><option value="tg">🇹🇯 الطاجيكية</option><option value="tk">🇹🇲 التركمانية</option><option value="ky">🇰🇬 القيرغيزية</option><option value="ps">🇦🇫 البشتوية</option><option value="si">🇱🇰 السريلانكية</option><option value="ta">🇮🇳 التاميلية</option><option value="te">🇮🇳 التيلوغو</option><option value="kn">🇮🇳 الكانادا</option><option value="gu">🇮🇳 الجوجاراتية</option><option value="pa">🇮🇳 البنجابية</option><option value="mi">🇳🇿 الماورية</option><option value="sm">🇼🇸 الساموية</option><option value="km">🇰🇭 الخميرية</option><option value="lo">🇱🇦 اللاوية</option><option value="my">🇲🇲 البورمية</option><option value="jw">🇮🇩 الجاوية</option><option value="su">🇮🇩 السوندانية</option><option value="ceb">🇵🇭 السيبوانية</option><option value="eo">🌐 الإسبرانتو</option><option value="gl">🇪🇸 الجاليشية</option><option value="ht">🇭🇹 الكريولية</option><option value="ha">🇳🇬 الهوسا</option><option value="haw">🇺🇸 الهواوية</option><option value="ig">🇳🇬 الإيجبو</option><option value="rw">🇷🇼 الكينيارواندية</option><option value="lb">🇱🇺 اللوكسمبورغية</option><option value="mg">🇲🇬 الملاغاشية</option><option value="ny">🇲🇼 النيانجا</option><option value="om">🇪🇹 الأورومية</option><option value="qu">🇵🇪 الكيتشوا</option><option value="sn">🇿🇼 الشونا</option><option value="sd">🇵🇰 السندية</option><option value="st">🇱🇸 السوتو</option><option value="tt">🇷🇺 التتارية</option><option value="ug">🇨🇳 الأويغورية</option><option value="xh">🇿🇦 الخوسية</option><option value="co">🇫🇷 كورسيكية</option><option value="fy">🇳🇱 الفريزية</option><option value="la">🇻🇦 اللاتينية</option><option value="gd">🇬🇧 الغيلية الأسكتلندية</option><option value="ak">🇬🇭 الأكانية</option><option value="ay">🇧🇴 الأيمارا</option><option value="bm">🇲🇱 البامبارا</option><option value="bho">🇮🇳 البوجبورية</option><option value="ee">🇬🇭 الإيوية</option><option value="gn">🇵🇾 الغوارانية</option><option value="ilo">🇵🇭 الإيلوكانو</option><option value="kri">🇸🇱 الكريو</option><option value="ckb">🇮🇶 الكردية الصورانية</option><option value="ln">🇨🇩 اللينغالا</option><option value="lg">🇺🇬 اللوغاندية</option><option value="mai">🇮🇳 المايثيلية</option><option value="dv">🇲🇻 الديفيهي</option><option value="lus">🇮🇳 الميزو</option><option value="nso">🇿🇦 السوتو الشمالية</option><option value="or">🇮🇳 الأورية</option><option value="sa">🇮🇳 السنسكريتية</option><option value="ti">🇪🇹 التغرينية</option><option value="ts">🇿🇦 التسونجا</option><option value="tw">🇬🇭 التوي</option><option value="wo">🇸🇳 الولوف</option><option value="os">🇷🇺 الأوسيتية</option><option value="sah">🇷🇺 الياكوتية</option><option value="ba">🇷🇺 البشكيرية</option><option value="cv">🇷🇺 التشوفاشية</option><option value="kv">🇷🇺 الكومية</option><option value="av">🇷🇺 الآفارية</option><option value="ce">🇷🇺 الشيشانية</option><option value="lez">🇷🇺 اللزغينية</option><option value="udm">🇷🇺 الأودمورتية</option><option value="ab">🇬🇪 الأبخازية</option><option value="ff">🇸🇳 الفولانية</option><option value="kr">🇳🇬 الكانوري</option><option value="lu">🇨🇩 اللوبا-كاتانغا</option><option value="nr">🇿🇦 الندبيلي الجنوبية</option><option value="ss">🇿🇦 السواتية</option><option value="tn">🇿🇦 التسوانية</option><option value="ve">🇿🇦 الفيندا</option><option value="gaa">🇬🇭 الغا</option><option value="fon">🇧🇯 الفون</option><option value="din">🇸🇸 الدنكا</option><option value="nus">🇸🇸 النوير</option><option value="sc">🇮🇹 السردينية</option><option value="vec">🇮🇹 البينيتية</option><option value="nap">🇮🇹 النبوليتانية</option><option value="scn">🇮🇹 الصقلية</option><option value="fur">🇮🇹 الفريولية</option><option value="lad">🇮🇱 اللادينو</option><option value="ast">🇪🇸 الأستورية</option><option value="an">🇪🇸 الأراغونية</option><option value="oc">🇫🇷 الأوكيتانية</option><option value="br">🇫🇷 البريتونية</option><option value="kw">🇬🇧 الكورنية</option><option value="gv">🇬🇧 المانكسية</option></select>
+                    </div>
+
+                    <div class="space-y-4">
+                        <label class="flex items-center gap-2 text-lg font-bold text-gray-200">
+                            <i class="fa-solid fa-headphones text-pink-400"></i> نوع الصوت:
+                        </label>
+                        <input type="hidden" id="selectedGender" value="male">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div id="cardMale" onclick="selectGender('male')" class="cursor-pointer bg-blue-600/20 border-2 border-blue-500 text-blue-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-2">
+                                <i class="fa-solid fa-user-tie text-3xl"></i>
+                                <span class="font-bold text-lg">صوت رجالي</span>
+                            </div>
+                            <div id="cardFemale" onclick="selectGender('female')" class="cursor-pointer bg-black/40 border-2 border-gray-700 text-gray-500 rounded-2xl p-4 flex flex-col items-center justify-center gap-2">
+                                <i class="fa-solid fa-user-nurse text-3xl"></i>
+                                <span class="font-bold text-lg">صوت نسائي</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" id="submitBtn" onclick="startProcess()" class="w-full btn-reactor py-5 rounded-2xl text-2xl font-black flex items-center justify-center gap-4">
+                    <i class="fa-solid fa-bolt text-3xl"></i>
+                    <span>ابدأ الدبلجة الآن</span>
+                </button>
+            </form>
+
+            <div id="loadingBox" style="display: none;" class="mt-10 bg-black/60 border border-purple-500/40 p-8 rounded-3xl">
+                <div class="flex justify-between items-end mb-6">
+                    <div>
+                        <h4 class="text-2xl font-black text-white mb-2">جاري المعالجة...</h4>
+                        <p id="loadingText" class="text-purple-300 font-bold">بدء الاتصال...</p>
+                    </div>
+                    <div id="progressPercent" class="text-5xl font-black text-purple-400">0%</div>
+                </div>
+                <div class="w-full bg-gray-900 rounded-full h-4"><div id="progressBar" class="bg-gradient-to-r from-blue-500 to-pink-500 h-full w-0 rounded-full transition-all duration-300"></div></div>
+            </div>
+
+            <div id="resultBox" style="display: none;" class="mt-10 p-8 bg-green-900/20 border border-green-500/40 rounded-3xl text-center">
+                <h3 class="text-3xl font-black text-white mb-6">تمت الدبلجة بنجاح!</h3>
+                <video id="outputVideo" controls class="w-full max-h-[500px] bg-black mb-6 rounded-xl border border-gray-700"></video>
+                <a id="downloadBtn" download class="block bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-xl text-xl">تحميل الفيديو</a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function handleFileSelect(event) {
+            const input = event.target;
+            if (input.files && input.files[0]) {
+                document.getElementById('uploadStateEmpty').style.display = 'none';
+                document.getElementById('uploadStateSuccess').style.display = 'flex';
+                document.getElementById('selectedFileName').innerText = input.files[0].name;
+            }
+        }
+
+        function selectGender(gender) {
+            document.getElementById('selectedGender').value = gender;
+            const maleCard = document.getElementById('cardMale');
+            const femaleCard = document.getElementById('cardFemale');
+            if (gender === 'male') {
+                maleCard.className = "cursor-pointer bg-blue-600/20 border-2 border-blue-500 text-blue-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-2";
+                femaleCard.className = "cursor-pointer bg-black/40 border-2 border-gray-700 text-gray-500 rounded-2xl p-4 flex flex-col items-center justify-center gap-2";
+            } else {
+                femaleCard.className = "cursor-pointer bg-pink-600/20 border-2 border-pink-500 text-pink-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-2";
+                maleCard.className = "cursor-pointer bg-black/40 border-2 border-gray-700 text-gray-500 rounded-2xl p-4 flex flex-col items-center justify-center gap-2";
+            }
+        }
+
+        async function startProcess() {
+            const fileInput = document.getElementById('videoFile');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('⚠️ اختر فيديو أولاً!');
+                return;
+            }
+
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('loadingBox').style.display = 'block';
+            document.getElementById('resultBox').style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('target_lang', document.getElementById('targetLang').value);
+            formData.append('gender', document.getElementById('selectedGender').value);
+
+            try {
+                const response = await fetch('/api/ml/upload-and-dub-stream', { method: 'POST', body: formData });
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    const lines = decoder.decode(value).split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.replace('data: ', '').trim());
+                                if (data.status === 'progress') {
+                                    document.getElementById('progressBar').style.width = data.percent + '%';
+                                    document.getElementById('progressPercent').innerText = data.percent + '%';
+                                    document.getElementById('loadingText').innerText = data.message;
+                                } else if (data.status === 'success') {
+                                    document.getElementById('outputVideo').src = data.output_url;
+                                    document.getElementById('downloadBtn').href = data.output_url;
+                                    document.getElementById('loadingBox').style.display = 'none';
+                                    document.getElementById('resultBox').style.display = 'block';
+                                    if (typeof confetti === 'function') confetti({ particleCount: 200 });
+                                }
+                            } catch(e) {}
+                        }
+                    }
+                }
+            } catch (err) {
+                alert('حدث خطأ: ' + err.message);
+                document.getElementById('submitBtn').style.display = 'flex';
+                document.getElementById('loadingBox').style.display = 'none';
+            }
+        }
+    </script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const allLangs = {
+        'ar': '🇸🇦 العربية', 'en': '🇺🇸 الإنجليزية', 'es': '🇪🇸 الإسبانية', 'fr': '🇫🇷 الفرنسية',
+        'de': '🇩🇪 الألمانية', 'zh-CN': '🇨🇳 الصينية (المبسطة)', 'zh-TW': '🇹🇼 الصينية (التقليدية)',
+        'ru': '🇷🇺 الروسية', 'tr': '🇹🇷 التركية', 'hi': '🇮🇳 الهندية', 'it': '🇮🇹 الإيطالية',
+        'pt': '🇵🇹 البرتغالية', 'ja': '🇯🇵 اليابانية', 'ko': '🇰🇷 الكورية', 'nl': '🇳🇱 الهولندية',
+        'pl': '🇵🇱 البولندية', 'ro': '🇷🇴 الرومانية', 'uk': '🇺🇦 الأوكرانية', 'sv': '🇸🇪 السويدية',
+        'da': '🇩🇰 الدنماركية', 'fi': '🇫🇮 الفنلندية', 'no': '🇳🇴 النرويجية', 'cs': '🇨🇿 التشيكية',
+        'hu': '🇭🇺 الهنغارية', 'el': '🇬🇷 اليونانية', 'id': '🇮🇩 الإندونيسية', 'ms': '🇲🇾 الماليزية',
+        'th': '🇹🇭 التايلاندية', 'vi': '🇻🇳 الفيتنامية', 'he': '🇮🇱 العبرية', 'fa': '🇮🇷 الفارسية',
+        'ur': '🇵🇰 الأوردية', 'bn': '🇧🇩 البنغالية', 'sw': '🇰🇪 السواحلية', 'af': '🇿🇦 الأفريكانية',
+        'sq': '🇦🇱 الألبانية', 'am': '🇪🇹 الأمهرية', 'hy': '🇦🇲 الأرمنية', 'az': '🇦🇿 الأذربيجانية',
+        'eu': '🇪🇸 الباسكية', 'be': '🇧🇾 البيلاروسية', 'bs': '🇧🇦 البوسنية', 'bg': '🇧🇬 البلغارية',
+        'ca': '🇪🇸 الكتالونية', 'hr': '🇭🇷 الكرواتية', 'et': '🇪🇪 الإستونية', 'tl': '🇵🇭 الفلبينية',
+        'ka': '🇬🇪 الجورجية', 'is': '🇮🇸 الأيسلندية', 'ga': '🇮🇪 الأيرلندية', 'lv': '🇱🇻 اللاتفية',
+        'lt': '🇱🇹 اللتوانية', 'mk': '🇲🇰 المكدونية', 'ml': '🇮🇳 الماليالامية', 'mt': '🇲🇹 المالتية',
+        'mr': '🇮🇳 الماراهتية', 'mn': '🇲🇳 المنغولية', 'ne': '🇳🇵 النيبالية', 'sr': '🇷🇸 الصربية',
+        'sk': '🇸🇰 السلوفاكية', 'sl': '🇸🇮 السلوفينية', 'so': '🇸🇴 الصومالية', 'cy': '🇬🇧 الويلزية'
+    };
+    
+    function forceUpdateSelects() {
+        const selects = document.querySelectorAll('select');
+        const optionsHtml = Object.entries(allLangs).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+        selects.forEach(s => { s.innerHTML = optionsHtml; });
+    }
+
+    forceUpdateSelects();
+    setTimeout(forceUpdateSelects, 500);
+});
+</script>
+
+
+<script>
+(function() {
+    const langs = {"ar": "🇸🇦 العربية", "en": "🇺🇸 الإنجليزية", "es": "🇪🇸 الإسبانية", "fr": "🇫🇷 الفرنسية", "de": "🇩🇪 الألمانية", "zh": "🇨🇳 الصينية", "ru": "🇷🇺 الروسية", "tr": "🇹🇷 التركية", "hi": "🇮🇳 الهندية", "it": "🇮🇹 الإيطالية", "pt": "🇵🇹 البرتغالية", "ja": "🇯🇵 اليابانية", "ko": "🇰🇷 الكورية", "nl": "🇳🇱 الهولندية", "pl": "🇵🇱 البولندية", "ro": "🇷🇴 الرومانية", "uk": "🇺🇦 الأوكرانية", "sv": "🇸🇪 السويدية", "da": "🇩🇰 الدنماركية", "fi": "🇫🇮 الفنلندية", "no": "🇳🇴 النرويجية", "cs": "🇨🇿 التشيكية", "hu": "🇭🇺 الهنغارية", "el": "🇬🇷 اليونانية", "id": "🇮🇩 الإندونيسية", "ms": "🇲🇾 الماليزية", "th": "🇹🇭 التايلاندية", "vi": "🇻🇳 الفيتنامية", "he": "🇮🇱 العبرية", "fa": "🇮🇷 الفارسية", "ur": "🇵🇰 الأوردية", "bn": "🇧🇩 البنغالية", "sw": "🇰🇪 السواحلية", "af": "🇿🇦 الأفريكانية", "sq": "🇦🇱 الألبانية", "am": "🇪🇹 الأمهرية", "hy": "🇦🇲 الأرمنية", "az": "🇦🇿 الأذربيجانية", "eu": "🇪🇸 الباسكية", "be": "🇧🇾 البيلاروسية", "bs": "🇧🇦 البوسنية", "bg": "🇧🇬 البلغارية", "ca": "🇪🇸 الكتالونية", "hr": "🇭🇷 الكرواتية", "et": "🇪🇪 الإستونية", "tl": "🇵🇭 الفلبينية", "ka": "🇬🇪 الجورجية", "is": "🇮🇸 الأيسلندية", "ga": "🇮🇪 الأيرلندية", "lv": "🇱🇻 اللاتفية", "lt": "🇱🇹 اللتوانية", "mk": "🇲🇰 المكدونية", "ml": "🇮🇳 الماليالامية", "mt": "🇲🇹 المالتية", "mr": "🇮🇳 الماراهتية", "mn": "🇲🇳 المنغولية", "ne": "🇳🇵 النيبالية", "sr": "🇷🇸 الصربية", "sk": "🇸🇰 السلوفاكية", "sl": "🇸🇮 السلوفينية", "so": "🇸🇴 الصومالية", "cy": "🇬🇧 الويلزية"};
+    function injectLangs() {
+        const selects = document.querySelectorAll('select');
+        selects.forEach(sel => {
+            sel.innerHTML = Object.entries(langs).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+        });
+    }
+    document.addEventListener('DOMContentLoaded', injectLangs);
+    window.addEventListener('load', injectLangs);
+    setInterval(injectLangs, 500);
+})();
+</script>
+
+</body>
+</html>

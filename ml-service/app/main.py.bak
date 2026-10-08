@@ -1,0 +1,370 @@
+import os
+import time
+import json
+import asyncio
+from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from app.services.dubber import run_dubbing_pipeline
+
+app = FastAPI(title="LinguaCast AI Pro", version="6.5")
+
+STORAGE_DIR = "storage"
+os.makedirs(STORAGE_DIR, exist_ok=True)
+app.mount("/storage", StaticFiles(directory=STORAGE_DIR), name="storage")
+
+HTML_TEMPLATE = r"""
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinguaCast AI Pro | استوديو الدبلجة الذكي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #050505; color: #ffffff; overflow-x: hidden; margin: 0; }
+        .cosmic-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; background: radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.15), transparent 25%), radial-gradient(circle at 85% 30%, rgba(14, 116, 144, 0.15), transparent 25%); animation: bgShift 15s ease-in-out infinite alternate; }
+        .glass-panel { background: rgba(20, 20, 25, 0.6); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6); }
+        .btn-reactor { background: linear-gradient(135deg, #4f46e5 0%, #9333ea 50%, #ec4899 100%); background-size: 200% auto; color: white; transition: all 0.4s; cursor: pointer; }
+        .btn-reactor:hover { background-position: right center; transform: translateY(-3px) scale(1.01); box-shadow: 0 15px 30px rgba(147, 51, 234, 0.6); }
+        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #000; } ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col relative">
+
+    <div class="cosmic-bg"></div>
+
+    <header class="border-b border-white/10 bg-black/30 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.5)]">
+                    <i class="fa-solid fa-microphone-lines text-white text-2xl"></i>
+                </div>
+                <h1 class="text-2xl font-black text-white">LinguaCast <span class="text-purple-400">Pro Studio</span></h1>
+            </div>
+            <span class="bg-purple-900/50 text-purple-300 border border-purple-500/30 text-xs px-3 py-1 rounded-full font-bold">20 لغة عالمية مدعومة 🌍</span>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 py-12 w-full flex-grow relative z-10">
+        <div class="text-center mb-10 space-y-3">
+            <h2 class="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400">
+                استوديو الدبلجة الاحترافي
+            </h2>
+            <p class="text-gray-400 text-base">ترجمة سياقية دقيقة لـ 20 لغة، دبلجة صوتية طبيعية، وحرق الترجمة على الفيديو.</p>
+        </div>
+
+        <div class="glass-panel rounded-[2rem] p-6 md:p-10 relative overflow-hidden">
+            
+            <form id="dubForm" class="space-y-8" onsubmit="return false;">
+                
+                <div>
+                    <label class="flex items-center gap-2 text-lg font-bold text-gray-200 mb-4">
+                        <i class="fa-solid fa-cloud-arrow-up text-purple-400"></i> اختر ملف الفيديو:
+                    </label>
+                    <input type="file" id="videoFile" accept="video/*" class="hidden" onchange="window.handleFileSelect(event)">
+                    <div id="uploadBox" onclick="window.triggerFileSelect()" class="border-2 border-dashed border-gray-600/50 hover:border-purple-500 bg-black/40 hover:bg-purple-900/10 rounded-3xl p-10 text-center cursor-pointer transition-all">
+                        <div id="uploadStateEmpty" class="space-y-4">
+                            <i class="fa-solid fa-film text-4xl text-gray-400"></i>
+                            <h3 class="text-xl font-bold text-white">اضغط هنا لاختيار الفيديو</h3>
+                            <p class="text-gray-500 text-sm">أو اسحب الملف وأفلته هنا</p>
+                        </div>
+                        <div id="uploadStateSuccess" style="display: none;" class="flex-col items-center justify-center space-y-3">
+                            <i class="fa-solid fa-check text-3xl text-green-400 drop-shadow-[0_0_10px_rgba(34,197,94,0.5)]"></i>
+                            <h3 id="selectedFileName" class="text-lg font-bold text-white bg-gray-900 px-4 py-2 rounded-xl border border-gray-700"></h3>
+                            <span class="text-sm text-purple-400 underline">تغيير الملف</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-4">
+                        <label class="flex items-center gap-2 text-lg font-bold text-gray-200">
+                            <i class="fa-solid fa-earth-americas text-blue-400"></i> لغة الدبلجة (20 لغة عالمية):
+                        </label>
+                        <select id="targetLang" class="w-full bg-black/60 border border-gray-700 rounded-2xl px-5 py-4 text-white text-lg font-bold outline-none focus:border-blue-500">
+                            <option value="ar">🇸🇦 العربية</option>
+                            <option value="en">🇺🇸 الإنجليزية</option>
+                            <option value="es">🇪🇸 الإسبانية</option>
+                            <option value="fr">🇫🇷 الفرنسية</option>
+                            <option value="de">🇩🇪 الألمانية</option>
+                            <option value="it">🇮🇹 الإيطالية</option>
+                            <option value="tr">🇹🇷 التركية</option>
+                            <option value="ru">🇷🇺 الروسية</option>
+                            <option value="zh">🇨🇳 الصينية</option>
+                            <option value="ja">🇯🇵 اليابانية</option>
+                            <option value="ko">🇰🇷 الكورية</option>
+                            <option value="hi">🇮🇳 الهندية</option>
+                            <option value="pt">🇵🇹 البرتغالية</option>
+                            <option value="nl">🇳🇱 الهولندية</option>
+                            <option value="pl">🇵🇱 البولندية</option>
+                            <option value="sv">🇸🇪 السويدية</option>
+                            <option value="id">🇮🇩 الإندونيسية</option>
+                            <option value="fa">🇮🇷 الفارسية</option>
+                            <option value="ur">🇵🇰 الأوردو</option>
+                            <option value="uk">🇺🇦 الأوكرانية</option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-4">
+                        <label class="flex items-center gap-2 text-lg font-bold text-gray-200">
+                            <i class="fa-solid fa-headphones text-pink-400"></i> نوع الصوت:
+                        </label>
+                        <input type="hidden" id="selectedGender" value="male">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div id="cardMale" onclick="window.selectGender('male')" class="cursor-pointer bg-blue-600/20 border-2 border-blue-500 text-blue-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                                <i class="fa-solid fa-user-tie text-2xl"></i>
+                                <span class="font-bold">صوت رجالي</span>
+                            </div>
+                            <div id="cardFemale" onclick="window.selectGender('female')" class="cursor-pointer bg-black/40 border-2 border-gray-700 text-gray-500 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 hover:border-gray-500">
+                                <i class="fa-solid fa-user-nurse text-2xl"></i>
+                                <span class="font-bold">صوت نسائي</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <input type="hidden" id="valBurnSubtitles" value="true">
+                <input type="hidden" id="valUseDemucs" value="false">
+                
+                <div class="bg-black/30 border border-white/5 rounded-2xl p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="flex items-center justify-between cursor-pointer" onclick="window.toggleOption('valBurnSubtitles')">
+                        <div class="flex items-center gap-3 text-gray-300 font-bold">
+                            <i class="fa-solid fa-closed-captioning text-xl text-indigo-400"></i>
+                            <span>دمج الترجمة المطبوعة على الفيديو</span>
+                        </div>
+                        <div id="switchBurn" class="w-12 h-6 bg-indigo-500 rounded-full flex items-center px-1">
+                            <div id="knobBurn" class="w-4 h-4 bg-white rounded-full" style="transform: translateX(-150%);"></div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between cursor-pointer" onclick="window.toggleOption('valUseDemucs')">
+                        <div class="flex items-center gap-3 text-gray-300 font-bold">
+                            <i class="fa-solid fa-wave-square text-xl text-rose-400"></i>
+                            <span>عزل الضوضاء والموسيقى (Demucs)</span>
+                        </div>
+                        <div id="switchDemucs" class="w-12 h-6 bg-gray-700 rounded-full flex items-center px-1">
+                            <div id="knobDemucs" class="w-4 h-4 bg-white rounded-full" style="transform: translateX(0);"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" id="startDubBtn" onclick="window.startProcess()" class="w-full btn-reactor py-5 rounded-2xl text-2xl font-black flex items-center justify-center gap-4">
+                    <i class="fa-solid fa-wand-magic-sparkles text-3xl"></i>
+                    <span>ابدأ معالجة الفيديو والدبلجة</span>
+                </button>
+            </form>
+
+            <div id="loadingBox" style="display: none;" class="mt-6 bg-black/60 border border-purple-500/40 p-8 rounded-3xl text-center space-y-4">
+                <i class="fa-solid fa-gear fa-spin text-5xl text-purple-400 mb-2"></i>
+                <h4 id="loadingText" class="text-2xl font-black text-white">جاري معالجة الفيديو...</h4>
+                <div class="w-full bg-gray-900 rounded-full h-4 p-1">
+                    <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-pink-500 h-full w-0 rounded-full transition-all duration-300"></div>
+                </div>
+                <div id="progressPercent" class="text-3xl font-black text-purple-400">0%</div>
+            </div>
+
+            <div id="resultBox" style="display: none;" class="mt-6 p-8 bg-black/50 border border-green-500/40 rounded-3xl text-center space-y-6">
+                <div class="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(34,197,94,0.5)]">
+                    <i class="fa-solid fa-check-double text-4xl text-white"></i>
+                </div>
+                <h3 class="text-3xl font-black text-white">تمت الدبلجة بنجاح!</h3>
+
+                <video id="outputVideo" controls class="w-full max-h-[500px] bg-black rounded-2xl border border-gray-700 shadow-2xl"></video>
+                
+                <div class="flex gap-4">
+                    <a id="downloadBtn" download class="flex-1 bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-xl text-center text-xl transition-all cursor-pointer">
+                        <i class="fa-solid fa-download ml-2"></i> تحميل الفيديو
+                    </a>
+                    <button onclick="location.reload()" class="bg-gray-800 hover:bg-gray-700 text-white py-4 px-6 rounded-xl transition-all">
+                        <i class="fa-solid fa-rotate-right ml-2"></i> إعادة من جديد
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        window.triggerFileSelect = () => document.getElementById('videoFile').click();
+
+        window.handleFileSelect = (event) => {
+            const input = event.target;
+            if (input.files && input.files[0]) {
+                document.getElementById('uploadStateEmpty').style.display = 'none';
+                document.getElementById('uploadStateSuccess').style.display = 'flex';
+                document.getElementById('selectedFileName').innerText = input.files[0].name;
+            }
+        };
+
+        window.selectGender = (gender) => {
+            document.getElementById('selectedGender').value = gender;
+            document.getElementById('cardMale').className = gender === 'male' ? 
+                "cursor-pointer bg-blue-600/20 border-2 border-blue-500 text-blue-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.3)]" : 
+                "cursor-pointer bg-black/40 border-2 border-gray-700 text-gray-500 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 hover:border-gray-500";
+            
+            document.getElementById('cardFemale').className = gender === 'female' ? 
+                "cursor-pointer bg-pink-600/20 border-2 border-pink-500 text-pink-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 shadow-[0_0_15px_rgba(236,72,153,0.3)]" : 
+                "cursor-pointer bg-black/40 border-2 border-gray-700 text-gray-500 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 hover:border-gray-500";
+        };
+
+        window.toggleOption = (id) => {
+            const input = document.getElementById(id);
+            input.value = input.value === "true" ? "false" : "true";
+            const isBurn = id === 'valBurnSubtitles';
+            const switchBg = document.getElementById(isBurn ? 'switchBurn' : 'switchDemucs');
+            const knob = document.getElementById(isBurn ? 'knobBurn' : 'knobDemucs');
+            if (input.value === "true") {
+                switchBg.classList.replace('bg-gray-700', isBurn ? 'bg-indigo-500' : 'bg-rose-500');
+                knob.style.transform = 'translateX(-150%)';
+            } else {
+                switchBg.classList.replace(isBurn ? 'bg-indigo-500' : 'bg-rose-500', 'bg-gray-700');
+                knob.style.transform = 'translateX(0)';
+            }
+        };
+
+        window.startProcess = async () => {
+            const fileInput = document.getElementById('videoFile');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('⚠️ من فضلك اختر فيديو أولاً!');
+                return;
+            }
+
+            document.getElementById('dubForm').style.display = 'none';
+            document.getElementById('loadingBox').style.display = 'block';
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('target_lang', document.getElementById('targetLang').value);
+            formData.append('gender', document.getElementById('selectedGender').value);
+            formData.append('burn_subtitles', document.getElementById('valBurnSubtitles').value === "true");
+            formData.append('use_demucs', document.getElementById('valUseDemucs').value === "true");
+
+            try {
+                const response = await fetch('/api/ml/upload-and-dub-stream', { method: 'POST', body: formData });
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    const lines = decoder.decode(value).split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.replace('data: ', '').trim());
+                                if (data.status === 'progress') {
+                                    document.getElementById('progressBar').style.width = data.percent + '%';
+                                    document.getElementById('progressPercent').innerText = data.percent + '%';
+                                    document.getElementById('loadingText').innerText = data.message;
+                                } else if (data.status === 'success') {
+                                    document.getElementById('outputVideo').src = data.output_url;
+                                    document.getElementById('downloadBtn').href = data.output_url;
+                                    
+                                    document.getElementById('loadingBox').style.display = 'none';
+                                    document.getElementById('resultBox').style.display = 'block';
+                                    if (typeof confetti === 'function') confetti({ particleCount: 200, spread: 100 });
+                                } else if (data.status === 'error') {
+                                    alert('❌ خطأ: ' + data.message);
+                                    document.getElementById('dubForm').style.display = 'block';
+                                    document.getElementById('loadingBox').style.display = 'none';
+                                }
+                            } catch(e) {}
+                        }
+                    }
+                }
+            } catch (err) {
+                alert('حدث خطأ في الاتصال: ' + err.message);
+                document.getElementById('dubForm').style.display = 'block';
+                document.getElementById('loadingBox').style.display = 'none';
+            }
+        };
+    </script>
+</body>
+</html>
+"""
+
+@app.get("/", response_class=HTMLResponse)
+async def home():
+    return HTML_TEMPLATE
+
+@app.post("/api/ml/upload-and-dub-stream")
+async def upload_and_dub_stream(
+    file: UploadFile = File(...),
+    target_lang: str = Form("ar"),
+    gender: str = Form("male"),
+    burn_subtitles: bool = Form(True),
+    use_demucs: bool = Form(False)
+):
+    async def event_generator():
+        input_filename = f"input_{int(time.time())}_{file.filename}"
+        output_filename = f"dubbed_{target_lang}_{gender}_{int(time.time())}_{file.filename}"
+        
+        input_path = os.path.join(STORAGE_DIR, input_filename)
+        output_path = os.path.join(STORAGE_DIR, output_filename)
+
+        with open(input_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+
+        queue = asyncio.Queue()
+
+        async def cb(p, m):
+            msg = f"data: {json.dumps({'status': 'progress', 'percent': p, 'message': m})}\n\n"
+            await queue.put(msg)
+            await asyncio.sleep(0.01)
+
+        async def worker():
+            try:
+                await cb(5, "⚡ جاري تحضير الملف الصوتي...")
+
+                metrics = await run_dubbing_pipeline(
+                    input_video_path=input_path,
+                    output_video_path=output_path,
+                    target_lang=target_lang,
+                    gender=gender,
+                    burn_subtitles=burn_subtitles,
+                    use_demucs=use_demucs,
+                    progress_callback=cb
+                )
+
+                if os.path.exists(input_path):
+                    try:
+                        os.remove(input_path)
+                    except Exception:
+                        pass
+
+                success_data = json.dumps({
+                    "status": "success",
+                    "output_url": f"/storage/{output_filename}",
+                    **(metrics if isinstance(metrics, dict) else {})
+                })
+                await queue.put(f"data: {success_data}\n\n")
+
+            except Exception as e:
+                error_data = json.dumps({"status": "error", "message": str(e)})
+                await queue.put(f"data: {error_data}\n\n")
+
+            finally:
+                await queue.put(None)
+
+        asyncio.create_task(worker())
+
+        while True:
+            item = await queue.get()
+            if item is None:
+                break
+            yield item
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
